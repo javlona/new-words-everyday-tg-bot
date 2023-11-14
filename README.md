@@ -1,1 +1,1 @@
-# new-words-everyday-tg-bot
+# Telegram bot that sends words everyday
