@@ -60,6 +60,10 @@ def start(update, context):
 
 # Function to handle the /setwords command
 def set_words(update, context):
+    if not context.args:
+        update.message.reply_text("Usage: /setwords <number>")
+        return
+
     try:
         # Extract the number of words from the user's message
         num_words = int(context.args[0])
@@ -69,8 +73,8 @@ def set_words(update, context):
             update.message.reply_text(f"Number of words set to {num_words}.")
         else:
             update.message.reply_text("Please enter a positive number.")
-    except (IndexError, ValueError):
-        update.message.reply_text("Usage: /setwords <number>")
+    except ValueError:
+        update.message.reply_text("Invalid input. Please enter a valid number.")
 
 # Set up the Telegram bot with your token
 updater = Updater(config('TELEGRAM_BOT_TOKEN'), use_context=True)
