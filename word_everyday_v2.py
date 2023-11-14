@@ -138,9 +138,9 @@ def send_words_command(update, context):
     # Create a custom keyboard with menu buttons
     menu_buttons = [
         [KeyboardButton("/sendwords"), KeyboardButton("/setwords")],
-        [KeyboardButton("/help")]
+        [KeyboardButton("/sendnow"), KeyboardButton("/help")]
     ]
-    reply_markup = ReplyKeyboardMarkup(menu_buttons, resize_keyboard=True, one_time_keyboard=True)
+    reply_markup = ReplyKeyboardMarkup(menu_buttons, resize_keyboard=True)
 
     # Send the information message along with the menu
     update.message.reply_text(info_message, reply_markup=reply_markup)
