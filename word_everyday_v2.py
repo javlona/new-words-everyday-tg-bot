@@ -1,6 +1,6 @@
 from decouple import config
 from telegram import ReplyKeyboardMarkup, KeyboardButton
-from telegram.ext import Updater, CommandHandler
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
 from datetime import time
 import random
 import requests
@@ -8,6 +8,9 @@ import json
 
 # File path to store user information
 user_info_file_path = "user_info.json"
+
+# Define conversation states
+SET_WORDS = 0
 
 # Function to read words from a text file
 def read_words_from_file(file_path):
@@ -103,48 +106,6 @@ def start(update, context):
     # Send the start message with the menu
     update.message.reply_text(start_message, reply_markup=reply_markup)
 
-# Function to handle the /setwords command
-def set_words(update, context):
-    if not context.args:
-        update.message.reply_text("Usage: /setwords <number>")
-        return
-
-    try:
-        # Extract the number of words from the user's message
-        num_words = int(context.args[0])
-        if num_words > 0:
-            # Update the number of words for the chat
-            num_words_dict[update.message.chat_id] = num_words
-            update.message.reply_text(f"Number of words set to {num_words}.")
-        else:
-            update.message.reply_text("Please enter a positive number.")
-    except ValueError:
-        update.message.reply_text("Invalid input. Please enter a valid number.")
-
-# Function to handle the /sendwords command
-def send_words_command(update, context):
-    chat_id = update.message.chat_id
-    num_words = num_words_dict.get(chat_id, default_num_words)
-
-    # Create a message to inform the user about receiving words
-    info_message = f"You will receive {num_words} words every day at 12:00 PM."
-
-    # Send the information message
-    context.bot.send_message(chat_id=chat_id, text=info_message)
-
-    # Schedule the send_words job every day at 12:00 PM
-    context.job_queue.run_daily(send_words, time=time(hour=12, minute=0, second=0), context={'chat_id': chat_id})
-
-    # Create a custom keyboard with menu buttons
-    menu_buttons = [
-        [KeyboardButton("/sendwords"), KeyboardButton("/setwords")],
-        [KeyboardButton("/sendnow"), KeyboardButton("/help")]
-    ]
-    reply_markup = ReplyKeyboardMarkup(menu_buttons, resize_keyboard=True)
-
-    # Send the information message along with the menu
-    update.message.reply_text(info_message, reply_markup=reply_markup)
-
 # Function to save user information
 def save_user_info(user_id, first_name, last_name, username):
     # Load existing user information from the file
@@ -170,6 +131,39 @@ def load_user_info():
         # If the file doesn't exist yet, return an empty dictionary
         return {}
 
+# Function to start the /setwords command and initiate the conversation
+def set_words(update, context):
+    update.message.reply_text("Please enter the number of words you want to receive:")
+    return SET_WORDS
+
+# Function to handle the user's input and set the number of words
+def set_words_input(update, context):
+    try:
+        # Extract the number of words from the user's message
+        num_words = int(update.message.text)
+        if num_words > 0:
+            # Update the number of words for the chat
+            num_words_dict[update.message.chat_id] = num_words
+            update.message.reply_text(f"Number of words set to {num_words}.")
+        else:
+            update.message.reply_text("Please enter a positive number.")
+        
+    except ValueError:
+        update.message.reply_text("Invalid input. Please enter a valid number.")
+
+    # End the conversation and remove the custom keyboard
+    return ConversationHandler.END
+
+# Create a ConversationHandler for the /setwords command
+set_words_conv_handler = ConversationHandler(
+    entry_points=[CommandHandler("setwords", set_words)],
+    states={
+        SET_WORDS: [MessageHandler(Filters.text & ~Filters.command, set_words_input)]
+    },
+    fallbacks=[],
+    per_user=False
+)
+
 # Set up the Telegram bot with your token
 updater = Updater(config('TELEGRAM_BOT_TOKEN'), use_context=True)
 
@@ -182,8 +176,8 @@ dp.add_handler(CommandHandler("sendwords", send_words_command))
 # Register the /start command
 dp.add_handler(CommandHandler("start", start))
 
-# Register the /setwords command
-dp.add_handler(CommandHandler("setwords", set_words, pass_args=True))
+# Register the /setwords command using the ConversationHandler
+dp.add_handler(set_words_conv_handler)
 
 # Register the /sendnow command
 dp.add_handler(CommandHandler("sendnow", send_now_command))
